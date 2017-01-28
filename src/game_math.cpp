@@ -507,20 +507,13 @@ GetAngle(quaternion A)
 	return Result;
 }
 
-//
-// NOTE(nick): This doesn't return the EXACT axis and can cause subtle bugs.
-//
 inline v3
-GetAxis_(quaternion A)
+GetAxis(quaternion A)
 {
 	v3 Result = {};
 
-	float Divisor
-#if 1
-   	= Sqrt(1 - Square(A.W));
-#else
-	= Sin(GetAngle(A) / 2.0f);
-#endif
+	float Divisor = Sqrt(1 - Square(A.W));// Sin(GetAngle(A) / 2.0f);
+
 	Result = 
 	{
 		A.X / Divisor,
@@ -531,6 +524,17 @@ GetAxis_(quaternion A)
 	return Result;
 }
 
+inline axis_angle
+GetAxisAngle(quaternion A)
+{
+	axis_angle Result = {GetAxis(A), GetAngle(A)};
+
+	return Result;
+}
+
+//
+// NOTE(nick): GetAxis() is pretty inaccurate and shouldn't be used in any practical sense.
+//
 inline quaternion
 MulAngle(quaternion A, float B)
 {
@@ -544,7 +548,7 @@ MulAngle(quaternion A, float B)
 	}
 	else
 	{
-		v3 Axis = Normalize(GetAxis_(A));
+		v3 Axis = Normalize(GetAxis(A));
 		Angle *= B;
 		Result = Quaternion(Axis, Angle);
 	}

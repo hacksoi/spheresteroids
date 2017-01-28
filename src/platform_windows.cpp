@@ -320,24 +320,34 @@ RotateEntity(entity *Entity, float RotateAngle, float dt)
 internal void
 MoveEntity(entity *Entity, axis_angle Acceleration, float dt)
 {
-	// 0.5f*a*t^2 + v*t + p
+	if(Acceleration.Angle != 0.0f)
 	{
-		quaternion AccelerationQuat = Normalize(Quaternion(Acceleration.Axis, Acceleration.Angle * dt / 20.0f));
-		Entity->Velocity = Normalize(AccelerationQuat * Entity->Velocity);
+		float C = 20.0f;
+		quaternion AccelerationQuat = Normalize(Quaternion(Acceleration.Axis, Acceleration.Angle * dt / C));
+		quaternion NewVelocity = Normalize(AccelerationQuat * Entity->Velocity);
 
-		quaternion EntityDelta = Entity->Velocity;
-		//quaternion EntityDelta = Normalize(Slerp(IdentityQuat(), Entity->Velocity, dt));
-
-		RotateNormalize(&Entity->RightAxis, EntityDelta);
-		for(uint32_t EntityVertexIndex = 0;
-			EntityVertexIndex < Entity->NumVertices;
-			++EntityVertexIndex)
+		// NOTE(nick): fix NewVelocity
 		{
-			RotateNormalize(&Entity->Vertices[EntityVertexIndex], EntityDelta);
-		}
+			float VelocityAngle = GetAngle(NewVelocity);
+			v3 WrongVelocityAxis = GetAxis(NewVelocity);
+			v3 VelocityAxis = Normalize(Project(WrongVelocityAxis, Entity->Vertices[ENTITY_VERTEX_CENTER]));
 
-		Assert(!isnan(Entity->Vertices[ENTITY_VERTEX_CENTER].X));
+			Entity->Velocity = Normalize(Quaternion(VelocityAxis, VelocityAngle));
+			Assert(!isnan(Entity->Velocity.X));
+		}
 	}
+
+	quaternion EntityDelta = Entity->Velocity;
+
+	RotateNormalize(&Entity->RightAxis, EntityDelta);
+	for(uint32_t EntityVertexIndex = 0;
+		EntityVertexIndex < Entity->NumVertices;
+		++EntityVertexIndex)
+	{
+		RotateNormalize(&Entity->Vertices[EntityVertexIndex], EntityDelta);
+	}
+
+	Assert(!isnan(Entity->Vertices[ENTITY_VERTEX_CENTER].X));
 }
 
 int
@@ -959,7 +969,7 @@ WinMain(HINSTANCE hInstance,
 #if 0
 			glDisable(GL_DEPTH_TEST);
 			DrawLine(&Shape3RenderObjects, V3(0, 0, 0), SphereRadius * -Player->RightAxis, V4(1.0f, 0.0f, 0.0f, 0.75f));
-			v3 PlayerMovementAxis = GetAxis_(Player->Velocity);
+			v3 PlayerMovementAxis = GetAxis(Player->Velocity);
 			DrawLine(&Shape3RenderObjects, V3(0, 0, 0), SphereRadius * PlayerMovementAxis, V4(0.0f, 1.0f, 0.0f, 0.75f));
 			glEnable(GL_DEPTH_TEST);
 #endif
