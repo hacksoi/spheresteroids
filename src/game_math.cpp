@@ -508,18 +508,21 @@ GetAngle(quaternion A)
 }
 
 inline v3
-GetAxis(quaternion A)
+GetAxis(quaternion A, bool CanBeInvalid = false)
 {
 	v3 Result = {};
 
 	float Divisor = Sqrt(1 - Square(A.W));// Sin(GetAngle(A) / 2.0f);
-
-	Result = 
+	if(!CanBeInvalid)
 	{
-		A.X / Divisor,
-		A.Y / Divisor,
-		A.Z / Divisor
-	};
+		Assert(Divisor != 0.0f);
+	}
+	if(Divisor != 0.0f)
+	{
+		Result.X = A.X / Divisor;
+		Result.Y = A.Y / Divisor;
+		Result.Z = A.Z / Divisor;
+	}
 
 	return Result;
 }
@@ -533,7 +536,8 @@ GetAxisAngle(quaternion A)
 }
 
 //
-// NOTE(nick): GetAxis() is pretty inaccurate and shouldn't be used in any practical sense.
+// NOTE(nick): GetAxis() is pretty inaccurate and shouldn't be used in any
+// practical sense.
 //
 inline quaternion
 MulAngle(quaternion A, float B)
@@ -599,13 +603,15 @@ Slerp(quaternion A, quaternion B, float t) {
 	}
 	else
 	{
-		// If the dot product is negative, the quaternions
-		// have opposite handed-ness and slerp won't take
-		// the shorted path. Fix by reversing one quaternion.
+		// If the dot product is negative, the quaternions have opposite
+		// handed-ness and slerp won't take the shortest path. Fix by reversing
+		// one quaternion.
+#if 0
 		if (ADotB < 0.0f) {
 			B = -B;
 			ADotB = -ADotB;
 		}
+#endif
 
 		ADotB = Clamp(ADotB, -1, 1); // Robustness: Stay within domain of acos()
 		float ABAngle = Acos(ADotB); // ABAngle = angle between input vectors

@@ -113,10 +113,7 @@ CreateShaderProgram(const char *VertexShaderSource,
 	{
 		GLchar InfoLog[512];
 		glGetShaderInfoLog(VertexShader, 512, NULL, InfoLog);
-
-		char DebugBuffer[1024];
-		wsprintf(DebugBuffer, "\nERROR COMPILING VERTEX SHADER:\n%s", InfoLog);
-		OutputDebugString(DebugBuffer);
+		DEBUGPrintf("\nERROR COMPILING VERTEX SHADER:\n%s", InfoLog);
 
 		Assert(false);
 	}
@@ -127,10 +124,7 @@ CreateShaderProgram(const char *VertexShaderSource,
 	{
 		GLchar InfoLog[512];
 		glGetShaderInfoLog(FragmentShader, 512, NULL, InfoLog);
-
-		char DebugBuffer[1024];
-		wsprintf(DebugBuffer, "\nERROR COMPILING FRAGMENT SHADER:\n%s", InfoLog);
-		OutputDebugString(DebugBuffer);
+		DEBUGPrintf("\nERROR COMPILING FRAGMENT SHADER:\n%s", InfoLog);
 
 		Assert(false);
 	}
@@ -145,10 +139,7 @@ CreateShaderProgram(const char *VertexShaderSource,
 	{
 		GLchar InfoLog[512];
 		glGetProgramInfoLog(ShaderProgram, 512, NULL, InfoLog);
-
-		char DebugBuffer[1024];
-		wsprintf(DebugBuffer, "\nERROR LINKING SHADER PROGRAM:\n%s", InfoLog);
-		OutputDebugString(DebugBuffer);
+		DEBUGPrintf("\nRROR LINKING SHADER PROGRAM:\n%s", InfoLog);
 
 		Assert(false);
 	}

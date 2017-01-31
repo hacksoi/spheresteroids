@@ -1,6 +1,4 @@
 #include <windows.h>
-//#include <assert.h>
-//#define Assert assert
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdint.h>
@@ -9,10 +7,17 @@
 #include "glcorearb.h"
 #include "wglext.h"
 
+#define DEBUGPrintf(Format, ...) \
+{ \
+	char Buffer[256]; \
+	_snprintf_s(Buffer, sizeof(Buffer), Format, __VA_ARGS__); \
+	OutputDebugString(Buffer); \
+}
+
 #include "util.h"
 #include "game_math.cpp"
-#include "renderer_opengl.cpp"
 #include "game.h"
+#include "renderer_opengl.cpp"
 
 global_variable HWND GlobalDummyWindow;
 global_variable HWND GlobalWindow;
@@ -318,26 +323,9 @@ RotateEntity(entity *Entity, float RotateAngle, float dt)
 }
 
 internal void
-MoveEntity(entity *Entity, axis_angle Acceleration, float dt)
+MoveEntity(entity *Entity, axis_angle AccelerationAxAn, float dt)
 {
-	if(Acceleration.Angle != 0.0f)
-	{
-		float C = 20.0f;
-		quaternion AccelerationQuat = Normalize(Quaternion(Acceleration.Axis, Acceleration.Angle * dt / C));
-		quaternion NewVelocity = Normalize(AccelerationQuat * Entity->Velocity);
-
-		// NOTE(nick): fix NewVelocity
-		{
-			float VelocityAngle = GetAngle(NewVelocity);
-			v3 WrongVelocityAxis = GetAxis(NewVelocity);
-			v3 VelocityAxis = Normalize(Project(WrongVelocityAxis, Entity->Vertices[ENTITY_VERTEX_CENTER]));
-
-			Entity->Velocity = Normalize(Quaternion(VelocityAxis, VelocityAngle));
-			Assert(!isnan(Entity->Velocity.X));
-		}
-	}
-
-	quaternion EntityDelta = Entity->Velocity;
+	quaternion EntityDelta = {};
 
 	RotateNormalize(&Entity->RightAxis, EntityDelta);
 	for(uint32_t EntityVertexIndex = 0;
@@ -560,7 +548,7 @@ WinMain(HINSTANCE hInstance,
 
 	entity *Player = AddEntity(&GameState);
 	const float PLAYER_ROTATE_VELOCITY = DegreesToRadians(325.0f);
-	const float PLAYER_MOVEMENT_ACCELERATION = DegreesToRadians(100.0f);
+	const float PLAYER_MOVEMENT_ACCELERATION = DegreesToRadians(400.0f);
 	const uint32_t PLAYER_TOP = 1;
 	const uint32_t PLAYER_BOTTOM_LEFT = 2;
 	const uint32_t PLAYER_BOTTOM_RIGHT = 3;
@@ -735,7 +723,7 @@ WinMain(HINSTANCE hInstance,
 		{
 			if(Loops != 0)
 			{
-				OutputDebugString("Missed Frame!\n");
+				DEBUGPrintf("Missed Frame!\n");
 			}
 
 			MSG Message;
@@ -833,7 +821,7 @@ WinMain(HINSTANCE hInstance,
 
 			RotateEntity(Player, PlayerRotateAngle, dt);
 			axis_angle PlayerAcceleration = {Player->RightAxis, PlayerAccelerationAngle};
-			MoveEntity(Player, PlayerAcceleration, dt);
+			//MoveEntity(Player, PlayerAcceleration, dt);
 			SetCamera(Camera, Player);
 
 			NextGameTick += SkipTicks;
@@ -938,7 +926,7 @@ WinMain(HINSTANCE hInstance,
 			LineDataCount += LineDataAdded;
 		}
 
-		// calculate and send View matrix
+		// NOTE(hacksoi): Calculate and send View matrix
 		{ 
 			v3 CameraRenderPos = Lerp(Camera->OldPos, Camera->Pos, Interpolation);
 			v3 CameraRenderForward = Lerp(Camera->OldBases.Forward, Camera->Bases.Forward, Interpolation);
@@ -966,10 +954,10 @@ WinMain(HINSTANCE hInstance,
 			glDrawArrays(GL_TRIANGLES, 0, SphereNumVertices);
 			glBindVertexArray(0);
 
-#if 0
+#if 1
 			glDisable(GL_DEPTH_TEST);
 			DrawLine(&Shape3RenderObjects, V3(0, 0, 0), SphereRadius * -Player->RightAxis, V4(1.0f, 0.0f, 0.0f, 0.75f));
-			v3 PlayerMovementAxis = GetAxis(Player->Velocity);
+			v3 PlayerMovementAxis = GetAxis(Player->Velocity, true);
 			DrawLine(&Shape3RenderObjects, V3(0, 0, 0), SphereRadius * PlayerMovementAxis, V4(0.0f, 1.0f, 0.0f, 0.75f));
 			glEnable(GL_DEPTH_TEST);
 #endif

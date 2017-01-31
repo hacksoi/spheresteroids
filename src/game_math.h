@@ -1,9 +1,9 @@
 #ifndef GAME_MATH_HEADER
 #define GAME_MATH_HEADER
 
-#define Pi32 ((float)M_PI)
-#define Half_Pi32 (Pi32/2.0f)
-#define Two_Pi32 (2.0f*PI_32)
+#define Half_Pi32 1.57079632679f
+#define Pi32 3.14159265359f
+#define Two_Pi32 6.28318530718f
 
 union v2
 {
@@ -65,14 +65,6 @@ struct quaternion
 {
 	float X, Y, Z, W;
 };
-
-#if 0
-struct sphere_motion
-{
-	v3 Axis;
-	float Rotation;
-};
-#endif
 
 struct plane
 {
