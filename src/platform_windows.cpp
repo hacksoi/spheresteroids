@@ -325,7 +325,20 @@ RotateEntity(entity *Entity, float RotateAngle, float dt)
 internal void
 MoveEntity(entity *Entity, axis_angle AccelerationAxAn, float dt)
 {
-	quaternion EntityDelta = {};
+	quaternion AccelerationQuat = Quaternion(Acceleration.Axis, Acceleration.Angle * dt);
+	quaternion NewVelocity = AccelerationQuat * Entity->Velocity;
+
+	// NOTE(nick): fix NewVelocity
+	{
+		float VelocityAngle = GetAngle(NewVelocity);
+		v3 WrongVelocityAxis = GetAxis(NewVelocity);
+		v3 VelocityAxis = Normalize(Project(WrongVelocityAxis, Entity->Vertices[ENTITY_VERTEX_CENTER]));
+
+		Entity->Velocity = Quaternion(VelocityAxis, VelocityAngle);
+		Assert(!isnan(Entity->Velocity.X));
+	}
+
+	quaternion EntityDelta = Entity->Velocity;
 
 	RotateNormalize(&Entity->RightAxis, EntityDelta);
 	for(uint32_t EntityVertexIndex = 0;
