@@ -310,37 +310,40 @@ SetCamera(camera *Camera, entity *Entity)
 	Assert(!isnan(Camera->Bases.Forward.X));
 }
 
+inline void
+FixEntityLeftAxis(entity *Entity)
+{
+	Entity->LeftAxis = Normalize(Project(Entity->LeftAxis, Entity->Vertices[ENTITY_VERTEX_CENTER]));
+}
+
 internal void
 RotateEntity(entity *Entity, float RotateAngle, float dt)
 {
-	RotateNormalize(&Entity->RightAxis, Entity->Vertices[ENTITY_VERTEX_CENTER], RotateAngle * dt);
+	quaternion Rotation = Quaternion(Entity->Vertices[ENTITY_VERTEX_CENTER], RotateAngle * dt);
+
+	RotateNormalize(&Entity->LeftAxis, Rotation);
 	for(uint32_t EntityVertexIndex = ENTITY_VERTEX_AFTER_CENTER;
 		EntityVertexIndex < Entity->NumVertices;
 		++EntityVertexIndex)
 	{
-		RotateNormalize(&Entity->Vertices[EntityVertexIndex], Entity->Vertices[ENTITY_VERTEX_CENTER], RotateAngle * dt);
+		RotateNormalize(&Entity->Vertices[EntityVertexIndex], Rotation);
 	}
+
+	FixEntityLeftAxis(Entity);
 }
 
 internal void
-MoveEntity(entity *Entity, axis_angle AccelerationAxAn, float dt)
+MoveEntity(entity *Entity, float AccelerationAngle, float dt)
 {
-	quaternion AccelerationQuat = Quaternion(Acceleration.Axis, Acceleration.Angle * dt);
-	quaternion NewVelocity = AccelerationQuat * Entity->Velocity;
+	v3 AccelerationAxis = Rotate(Entity->LeftAxis, Entity->Velocity);
+	// axis_angle Acceleration = {AccelerationAxis, AccelerationAngle * dt};
+	axis_angle Acceleration = {AccelerationAxis, AccelerationAngle * dt / 40.0f};
+	Entity->Velocity = Add(Entity->Velocity, Acceleration, Entity->Vertices[ENTITY_VERTEX_CENTER]);
 
-	// NOTE(nick): fix NewVelocity
-	{
-		float VelocityAngle = GetAngle(NewVelocity);
-		v3 WrongVelocityAxis = GetAxis(NewVelocity);
-		v3 VelocityAxis = Normalize(Project(WrongVelocityAxis, Entity->Vertices[ENTITY_VERTEX_CENTER]));
+	// quaternion EntityDelta = Quaternion(Entity->Velocity.Axis, Entity->Velocity.Angle * dt);
+	quaternion EntityDelta = Quaternion(Entity->Velocity.Axis, Entity->Velocity.Angle);
 
-		Entity->Velocity = Quaternion(VelocityAxis, VelocityAngle);
-		Assert(!isnan(Entity->Velocity.X));
-	}
-
-	quaternion EntityDelta = Entity->Velocity;
-
-	RotateNormalize(&Entity->RightAxis, EntityDelta);
+	RotateNormalize(&Entity->LeftAxis, EntityDelta);
 	for(uint32_t EntityVertexIndex = 0;
 		EntityVertexIndex < Entity->NumVertices;
 		++EntityVertexIndex)
@@ -349,6 +352,8 @@ MoveEntity(entity *Entity, axis_angle AccelerationAxAn, float dt)
 	}
 
 	Assert(!isnan(Entity->Vertices[ENTITY_VERTEX_CENTER].X));
+
+	DEBUGPrintf("%f\n", Entity->Velocity.Angle);
 }
 
 int
@@ -561,7 +566,7 @@ WinMain(HINSTANCE hInstance,
 
 	entity *Player = AddEntity(&GameState);
 	const float PLAYER_ROTATE_VELOCITY = DegreesToRadians(325.0f);
-	const float PLAYER_MOVEMENT_ACCELERATION = DegreesToRadians(400.0f);
+	const float PLAYER_MOVEMENT_ACCELERATION = DegreesToRadians(200.0f);
 	const uint32_t PLAYER_TOP = 1;
 	const uint32_t PLAYER_BOTTOM_LEFT = 2;
 	const uint32_t PLAYER_BOTTOM_RIGHT = 3;
@@ -569,8 +574,8 @@ WinMain(HINSTANCE hInstance,
 	const uint32_t PLAYER_UPPER_RIGHT = 5;
 	{
 		Player->Type = ENTITY_TYPE_PLAYER;
-		Player->RightAxis = V3(1.0f, 0.0f, 0.0f);
-		Player->Velocity = Quaternion(Player->RightAxis, 0.0f);
+		Player->LeftAxis = V3(-1.0f, 0.0f, 0.0f);
+		Player->Velocity = {Player->LeftAxis, 0.0f};
 		Player->NumVertices = 6;
 
 		float HalfWidth = 1.5f;
@@ -829,19 +834,18 @@ WinMain(HINSTANCE hInstance,
 
 			if(Buttons[BUTTON_ACCELERATE].IsDown)
 			{
-				PlayerAccelerationAngle -= PLAYER_MOVEMENT_ACCELERATION;
+				PlayerAccelerationAngle += PLAYER_MOVEMENT_ACCELERATION;
 			}
 
 			RotateEntity(Player, PlayerRotateAngle, dt);
-			axis_angle PlayerAcceleration = {Player->RightAxis, PlayerAccelerationAngle};
-			//MoveEntity(Player, PlayerAcceleration, dt);
+			MoveEntity(Player, PlayerAccelerationAngle, dt);
 			SetCamera(Camera, Player);
 
 			NextGameTick += SkipTicks;
 			++Loops;
 		}
 
-		float Interpolation = (float)(GetMillisecond() + SkipTicks - NextGameTick) / (float)(SkipTicks);
+		float Interpolation = (float)(GetMillisecond() + SkipTicks - NextGameTick) / (float)SkipTicks;
 		Assert(Interpolation >= 0.0f);
 		if(Interpolation > 1.0f)
 		{
@@ -969,9 +973,8 @@ WinMain(HINSTANCE hInstance,
 
 #if 1
 			glDisable(GL_DEPTH_TEST);
-			DrawLine(&Shape3RenderObjects, V3(0, 0, 0), SphereRadius * -Player->RightAxis, V4(1.0f, 0.0f, 0.0f, 0.75f));
-			v3 PlayerMovementAxis = GetAxis(Player->Velocity, true);
-			DrawLine(&Shape3RenderObjects, V3(0, 0, 0), SphereRadius * PlayerMovementAxis, V4(0.0f, 1.0f, 0.0f, 0.75f));
+			DrawLine(&Shape3RenderObjects, V3(0, 0, 0), SphereRadius * Player->LeftAxis, V4(1.0f, 0.0f, 0.0f, 0.75f));
+			DrawLine(&Shape3RenderObjects, V3(0, 0, 0), SphereRadius * Player->Velocity.Axis, V4(0.0f, 1.0f, 0.0f, 0.75f));
 			glEnable(GL_DEPTH_TEST);
 #endif
 		}

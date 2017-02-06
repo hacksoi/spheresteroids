@@ -508,17 +508,14 @@ GetAngle(quaternion A)
 }
 
 inline v3
-GetAxis(quaternion A, bool CanBeInvalid = false)
+GetAxis(quaternion A)
 {
 	v3 Result = {};
 
-	float Divisor = Sqrt(1 - Square(A.W));// Sin(GetAngle(A) / 2.0f);
-	if(!CanBeInvalid)
+	Assert(A.W <= 1.0f);
+	if(A.W < 1.0f)
 	{
-		Assert(Divisor != 0.0f);
-	}
-	if(Divisor != 0.0f)
-	{
+		float Divisor = Sqrt(1.0f - Square(A.W));
 		Result.X = A.X / Divisor;
 		Result.Y = A.Y / Divisor;
 		Result.Z = A.Z / Divisor;
@@ -708,10 +705,24 @@ Rotate(v3 *A, quaternion Rotation)
 }
 
 internal void
-Rotate(v3 *A, v3 Axis, float Radians)
+Rotate(v3 *A, v3 Axis, float Angle)
 {
-	quaternion Rotation = Quaternion(Axis, Radians);
+	quaternion Rotation = Quaternion(Axis, Angle);
 	Rotate(A, Rotation);
+}
+
+internal void
+Rotate(v3 *A, axis_angle Rotation)
+{
+	Rotate(A, Rotation.Axis, Rotation.Angle);
+}
+
+internal v3
+Rotate(v3 A, axis_angle Rotation)
+{
+	Rotate(&A, Rotation);
+
+	return A;
 }
 
 internal void
@@ -736,14 +747,16 @@ Rotate(v3 A, v3 Axis, float Radians)
 	return A;
 }
 
-#if 0
-inline sphere_motion
-Add(sphere_motion A, sphere_motion B, v3 Point)
+inline axis_angle
+Add(axis_angle A, axis_angle B, v3 Point)
 {
-	sphere_motion Result = {};
+	axis_angle Result = {};
 
-	if((A.Rotation == 0.0f) && 
-	   (B.Rotation == 0.0f))
+	if(A.Angle == 0.0f)
+	{
+		Result = B;
+	}
+	else if(B.Angle == 0.0f)
 	{
 		Result = A;
 	}
@@ -752,16 +765,32 @@ Add(sphere_motion A, sphere_motion B, v3 Point)
 		v3 OldPoint = Point;
 		v3 NewPoint = OldPoint;
 
-		Rotate(&NewPoint, A.Axis, A.Rotation);
-		Rotate(&NewPoint, B.Axis, B.Rotation);
+		Rotate(&NewPoint, A.Axis, A.Angle);
+		Rotate(&NewPoint, B.Axis, B.Angle);
 
-		Result.Axis = Normalize(Cross(NewPoint, OldPoint));
-		Result.Rotation = -Angle(OldPoint, NewPoint);
+		Result.Axis = Normalize(Cross(OldPoint, NewPoint));
+		Result.Angle = Angle(OldPoint, NewPoint);
+
+		// NOTE(hacksoi): If the angle is greater than 180 degrees, the cross
+		// product and angle are wrong since "they take the shortest route".
+		// This can be detected by checking if 1) A and B's axes are in the
+		// same direction and 2) Result's axis is not in the same direction as
+		// A's axis.
+		float ADotB = Dot(A.Axis, B.Axis);
+		if(ADotB > 0.0f)
+		{
+			float ADotResult = Dot(A.Axis, Result.Axis);
+			if(ADotResult < 0.0f)
+			{
+				Assert(false);
+				Result.Axis = -Result.Axis;
+				Result.Angle = (Two_Pi32 - Result.Angle);
+			}
+		}
 	}
 
 	return Result;
 }
-#endif
 
 inline plane
 Plane(v3 BaseA, v3 BaseB)

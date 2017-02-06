@@ -48,8 +48,8 @@ struct entity
 {
 	entity_type Type;
 
-	v3 RightAxis;
-	quaternion Velocity;
+	v3 LeftAxis;
+	axis_angle Velocity;
 
 	uint32_t NumVertices;
 #define ENTITY_VERTEX_CENTER 0
